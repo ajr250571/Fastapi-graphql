@@ -1,0 +1,28 @@
+// database
+datasource db {
+  provider = "sqlite"
+  url      = "file:database.db"
+}
+
+// generator
+generator client {
+  provider             = "prisma-client-py"
+  recursive_type_depth = 5
+}
+
+model Perfil {
+  id     String  @id @default(uuid())
+  name   String
+  active Boolean
+  user   User[]
+}
+
+model User {
+  id       String  @id @default(uuid())
+  email    String  @unique
+  name     String?
+  password String
+  active   Boolean
+  Perfil   Perfil  @relation(fields: [perfilId], references: [id])
+  perfilId String
+}
