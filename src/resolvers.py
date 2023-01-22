@@ -8,14 +8,19 @@ from typing import Dict, List, Optional
 import bcrypt
 from jose import jwt, JWTError
 from datetime import datetime, timedelta
-from src.models import Perfil, User, AuthPayload, WhereFilter
-from src.inputs import PerfilCreateInput, UserCreateInput, UserUpdateInput
+from src.models import Perfil, User, AuthPayload
+from src.inputs import (
+    PerfilCreateInput,
+    UserCreateInput,
+    UserUpdateInput,
+    UsersQueryInput,
+)
 import json
 
 
 ALGORITHM = "HS256"
 SECRET_KEY = "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24
 
 
 # FUNCTIONS
@@ -110,13 +115,48 @@ class IsAuthenticated(BasePermission):
 @strawberry.type
 class Query:
     @strawberry.field(permission_classes=[IsAuthenticated])
-    async def users(self) -> List[User]:
-        users = await prisma.user.find_many()
+    async def users(
+        self, filter: Optional[UsersQueryInput] = strawberry.UNSET
+    ) -> List[User]:
+        if filter != strawberry.UNSET:
+            if (not filter.search_string is None) and (not filter.active is None):
+                users = await prisma.user.find_many(
+                    where={
+                        "OR": [
+                            {"email": {"contains": filter.search_string}},
+                            {"name": {"contains": filter.search_string}},
+                        ],
+                        "AND": [
+                            {"active": filter.active},
+                        ],
+                    }
+                )
+            if (not filter.search_string is None) and (filter.active is None):
+                users = await prisma.user.find_many(
+                    where={
+                        "OR": [
+                            {"email": {"contains": filter.search_string}},
+                            {"name": {"contains": filter.search_string}},
+                        ],
+                    }
+                )
+
+            if (filter.search_string is None) and (not filter.active is None):
+                if not filter.active is None:
+                    users = await prisma.user.find_many(
+                        where={
+                            "AND": [
+                                {"active": filter.active},
+                            ],
+                        }
+                    )
+        else:
+            users = await prisma.user.find_many()
 
         return users
 
     @strawberry.field(permission_classes=[IsAuthenticated])
-    async def users_contein_email(self, email: str) -> List[User]:
+    async def users_by_email(self, email: str) -> List[User]:
         users = await prisma.user.find_many(where={"email": {"contains": email}})
         return users
 
