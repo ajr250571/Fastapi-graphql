@@ -35,17 +35,4 @@ class AuthPayload:
     user: User
 
 
-T = TypeVar("T")
-
-
-@strawberry.input
-class Filter(Generic[T]):
-    contains: Optional[T] = None
-
-
-@strawberry.input
-class WhereFilter:
-    email: Optional[Filter[str]] = None
-
-
 # END mODELS
