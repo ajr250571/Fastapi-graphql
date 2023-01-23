@@ -12,7 +12,7 @@ generator client {
 
 model Perfil {
   id     String  @id @default(uuid())
-  name   String
+  name   String  @unique
   active Boolean
   user   User[]
 }
@@ -23,6 +23,6 @@ model User {
   name     String?
   password String
   active   Boolean
-  Perfil   Perfil  @relation(fields: [perfilId], references: [id])
-  perfilId String
+  Perfil   Perfil? @relation(fields: [perfilId], references: [id])
+  perfilId String?
 }

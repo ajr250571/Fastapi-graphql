@@ -109,6 +109,11 @@ class IsAuthenticated(BasePermission):
         return False
 
 
+@strawberry.type
+class Error:
+    message: str
+
+
 # END CLASS
 
 # QUERY
@@ -117,7 +122,7 @@ class Query:
     @strawberry.field(permission_classes=[IsAuthenticated])
     async def users(
         self, filter: Optional[UsersQueryInput] = strawberry.UNSET
-    ) -> List[User]:
+    ) -> Optional[List[User]]:
         if filter != strawberry.UNSET:
             if (not filter.search_string is None) and (not filter.active is None):
                 users = await prisma.user.find_many(
@@ -156,28 +161,29 @@ class Query:
         return users
 
     @strawberry.field(permission_classes=[IsAuthenticated])
-    async def users_by_email(self, email: str) -> List[User]:
+    async def users_by_email(self, email: str) -> Optional[List[User]]:
         users = await prisma.user.find_many(where={"email": {"contains": email}})
         return users
 
     @strawberry.field(permission_classes=[IsAuthenticated])
-    async def user(self, id: strawberry.ID) -> User:
-        return await prisma.user.find_unique(where={"id": id})
-
-    @strawberry.field
-    async def me(token: str) -> User:
-        try:
-            user = await auth_user(token)
-        except:
-            raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Token NO autorizado.")
+    async def user(self, id: strawberry.ID) -> Optional[User]:
+        user = await prisma.user.find_unique(where={"id": id})
         return user
 
+    @strawberry.field
+    async def me(token: str) -> Optional[User]:
+        try:
+            user = await auth_user(token)
+            return user
+        except:
+            raise
+
     @strawberry.field(permission_classes=[IsAuthenticated])
-    async def perfil(self, id: strawberry.ID) -> Perfil:
+    async def perfil(self, id: strawberry.ID) -> Optional[Perfil]:
         return await prisma.perfil.find_unique(where={"id": id})
 
     @strawberry.field(permission_classes=[IsAuthenticated])
-    async def perfiles(self) -> List[Perfil]:
+    async def perfiles(self) -> Optional[List[Perfil]]:
         perfiles = await prisma.perfil.find_many()
         return perfiles
 
@@ -198,12 +204,23 @@ class Mutation:
         byteHash = bcrypt.hashpw(bytePwd, bcrypt.gensalt())
         pwdHash = byteHash.decode()
 
+        # ID de perfil 'Invitado'
+        perfil = await prisma.perfil.find_unique(where={"name": "Invitado"})
+        # print("perfilId", perfil.id)
+
         user = await prisma.user.create(
             data={
                 "name": user.name,
                 "email": user.email,
                 "password": pwdHash,
                 "active": user.active,
+            },
+        )
+
+        await prisma.user.update(
+            where={"id": user.id},
+            data={
+                "perfilId": perfil.id,
             },
         )
         return user

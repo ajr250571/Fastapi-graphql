@@ -7,7 +7,7 @@ class UserCreateInput:
     email: str
     name: Optional[str] = None
     password: str
-    active: bool
+    active: Optional[bool] = True
 
 
 @strawberry.input
