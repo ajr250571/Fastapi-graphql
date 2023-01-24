@@ -6,7 +6,7 @@ from strawberry import BasePermission
 from src.prisma import prisma
 from typing import Dict, List, Optional
 import bcrypt
-from jose import jwt, JWTError
+from jose import jwt
 from datetime import datetime, timedelta
 from src.models import Perfil, User, AuthPayload
 from src.inputs import (
@@ -73,10 +73,12 @@ async def search_user(email: str) -> User:
 
 async def auth_user(token: str) -> User:
     try:
-        email: str = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM]).get("sub")
+        email: str = jwt.decode(token, SECRET_KEY, algorithms=[
+                                ALGORITHM]).get("sub")
         user = await search_user(email)
     except:
-        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Token no Autorizado")
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED,
+                            "Token no Autorizado")
 
     if not user.active:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Usuario Inactivo")
@@ -87,10 +89,12 @@ async def auth_user(token: str) -> User:
 async def decodeJWT(token: str) -> bool:
     try:
         await auth_user(token)
+        return True
     except:
-        raise
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED,
+                            "Token no Autorizado")
 
-    return True
+    return False
 
 
 # END FUNCTIONES
@@ -193,12 +197,13 @@ class Query:
 # MUTATION
 @strawberry.type
 class Mutation:
-    @strawberry.mutation(permission_classes=[IsAuthenticated])
+    @strawberry.mutation()
     async def user_create(self, user: UserCreateInput) -> User:
         pwd = user.password
 
         if not password_check(pwd):
-            raise HTTPException(status.HTTP_401_UNAUTHORIZED, "Password invalido.")
+            raise HTTPException(
+                status.HTTP_401_UNAUTHORIZED, "Password invalido.")
 
         bytePwd = pwd.encode()
         byteHash = bcrypt.hashpw(bytePwd, bcrypt.gensalt())
@@ -235,7 +240,7 @@ class Mutation:
                 "email": user.email,
                 "name": user.name,
                 "active": user.active,
-            },
+              },
         )
         return user
 
@@ -264,7 +269,7 @@ class Mutation:
 
         return None
 
-    @strawberry.mutation(permission_classes=[IsAuthenticated])
+    @strawberry.mutation()
     async def perfil_create(self, perfil: PerfilCreateInput) -> Perfil:
         perfil = await prisma.perfil.create(
             data={
